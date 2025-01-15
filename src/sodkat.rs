@@ -10,8 +10,8 @@ pub struct SodKat {
 }
 
 impl SodKat {
-    pub fn new() -> Self {
-        Self { delay: 10 }
+    pub fn new(delay: u64) -> Self {
+        Self { delay }
     }
 
     fn modkeys(keys: &Vec<Keycode>) -> Vec<SodKatModifier> {

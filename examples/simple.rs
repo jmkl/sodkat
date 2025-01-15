@@ -1,20 +1,22 @@
 extern crate sodkat;
 use device_query::Keycode;
-use std::{io::Result, thread::sleep};
-
 use sodkat::event::{GlobalSodKatEvent, SodKatState};
 use sodkat::setting::Setting;
 use sodkat::sodkat::SodKat;
 use sodkat::win::get_foreground_app;
-
 use std::time::Duration;
+use std::{io::Result, thread::sleep};
 
-fn spawn_events() -> Result<()> {
+fn main() -> Result<()> {
     let setting = Setting::new("test.toml");
-    let sodkat = SodKat::new();
+    let sodkat = SodKat::new(10);
     sodkat.listen();
-    let receiver = GlobalSodKatEvent::receiver();
+    spawn_events(setting)?;
+    Ok(())
+}
 
+fn spawn_events(setting: Setting) -> Result<()> {
+    let receiver = GlobalSodKatEvent::receiver();
     loop {
         if let Ok(ev) = receiver.try_recv() {
             if ev.state == SodKatState::Release {
@@ -32,10 +34,5 @@ fn spawn_events() -> Result<()> {
         }
         sleep(Duration::from_millis(10));
     }
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    spawn_events()?;
     Ok(())
 }
