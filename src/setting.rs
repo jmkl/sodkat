@@ -1,18 +1,18 @@
 use crate::event::{FormatModifiers, GlobalSodKatEvent};
-use serde::{Deserialize, Serialize};
+use nanoserde::{DeJson, SerJson};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, DeJson, SerJson)]
 pub struct SodKatKey {
     pub key: String,
     pub scope: Vec<String>,
     pub function: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, DeJson, SerJson)]
 pub struct Setting {
     pub app_name: String,
     pub version: String,
@@ -40,8 +40,9 @@ impl Setting {
             .open(file_path)
         {
             Ok(mut f) => {
-                let default_config =
-                    toml::to_string(&Setting::default()).expect("Error writing default config");
+                // let default_config =
+                // toml::to_string(&Setting::default()).expect("Error writing default config");
+                let default_config = SerJson::serialize_json(&Setting::default());
                 _ = f.write_all(default_config.as_bytes());
             }
             Err(_) => {
@@ -55,7 +56,7 @@ impl Setting {
             Ok(result) => result,
             Err(_) => "".to_string(),
         };
-        let setting = toml::from_str(&content).unwrap_or(Setting::default());
+        let setting: Setting = DeJson::deserialize_json(&content).unwrap();
         Self {
             app_name: setting.app_name,
             version: setting.version,

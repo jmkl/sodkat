@@ -1,0 +1,20 @@
+{
+  "app_name": "SodKat",
+  "version": "1.0.0",
+  "keys": [
+    {
+      "key": "C k",
+      "scope": [
+        "photoshop.exe"
+      ],
+      "function": "do_something"
+    },
+    {
+      "key": "C-S k",
+      "scope": [
+        "notepad.exe"
+      ],
+      "function": "do_something_else"
+    }
+  ]
+}

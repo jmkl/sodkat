@@ -1,7 +1,7 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use device_query::Keycode;
+use nanoserde::{DeJson, SerJson};
 use once_cell::sync::{Lazy, OnceCell};
-use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 /*************************
@@ -26,7 +26,7 @@ pub enum SodKatState {
     Release,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, SerJson, DeJson)]
 pub enum SodKatModifier {
     ALT,
     SHIFT,
@@ -34,11 +34,22 @@ pub enum SodKatModifier {
     META,
 }
 pub trait FormatModifiers {
+    fn to_vec(&self) -> Vec<String>;
     fn format(&self) -> String;
 }
 
 // Implement `FormatModifiers` for `Vec<SodKatModifier>`
 impl FormatModifiers for Vec<SodKatModifier> {
+    fn to_vec(&self) -> Vec<String> {
+        self.iter()
+            .map(|modifier| match *modifier {
+                SodKatModifier::ALT => "Alt".into(),
+                SodKatModifier::SHIFT => "Shift".into(),
+                SodKatModifier::CONTROL => "Ctrl".into(),
+                SodKatModifier::META => "Meta".into(),
+            })
+            .collect::<Vec<String>>()
+    }
     fn format(&self) -> String {
         let mut r = self
             .iter()
@@ -60,6 +71,24 @@ pub struct GlobalSodKatEvent {
     pub state: SodKatState,
     pub modifier: Vec<SodKatModifier>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, SerJson)]
+pub struct GlobalSodKatPayload {
+    pub keycode: String,
+    pub is_pressed: bool,
+    pub modifier: Vec<String>,
+}
+
+impl GlobalSodKatEvent {
+    pub fn to_payload(&self) -> GlobalSodKatPayload {
+        GlobalSodKatPayload {
+            keycode: self.keycode.to_string(),
+            is_pressed: self.state == SodKatState::Press,
+            modifier: self.modifier.to_vec(),
+        }
+    }
+}
+
 impl Display for GlobalSodKatEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

@@ -1,3 +1,6 @@
 windows keylogger foreground windows' aware
 
-- (device_query)
+filter base on current active window (i.e photoshop.exe)
+
+
+- scripting > rhai?
