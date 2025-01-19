@@ -8,7 +8,7 @@ use std::time::Duration;
 use std::{io::Result, thread::sleep};
 
 fn main() -> Result<()> {
-    let setting = Setting::new("setting.json");
+    let setting = Setting::new("setting.toml");
     let sodkat = SodKat::new(10);
     sodkat.listen();
     spawn_events(setting)?;

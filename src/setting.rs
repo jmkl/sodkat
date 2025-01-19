@@ -1,23 +1,50 @@
 use crate::event::{FormatModifiers, GlobalSodKatEvent};
-use nanoserde::{DeJson, SerJson};
+use once_cell::sync::{Lazy, OnceCell};
+use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
+    sync::Mutex,
 };
 
-#[derive(Debug, Clone, DeJson, SerJson)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SodKatKey {
     pub key: String,
     pub scope: Vec<String>,
     pub function: String,
 }
 
-#[derive(Debug, DeJson, SerJson)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Setting {
     pub app_name: String,
     pub version: String,
     pub keys: Vec<SodKatKey>,
 }
+
+#[derive(Debug)]
+struct ComboState {
+    combo: bool,
+    key: String,
+}
+
+impl ComboState {
+    fn set(&mut self, key: String) {
+        self.combo = true;
+        self.key = key;
+    }
+    fn reset(&mut self) {
+        self.combo = false;
+        self.key = "".to_string();
+    }
+}
+
+static COMBO_KEY: Lazy<Mutex<ComboState>> = Lazy::new(|| {
+    Mutex::new(ComboState {
+        combo: false,
+        key: "".to_string(),
+    })
+});
+
 impl Default for Setting {
     fn default() -> Self {
         Self {
@@ -40,9 +67,8 @@ impl Setting {
             .open(file_path)
         {
             Ok(mut f) => {
-                // let default_config =
-                // toml::to_string(&Setting::default()).expect("Error writing default config");
-                let default_config = SerJson::serialize_json(&Setting::default());
+                let default_config =
+                    toml::to_string(&Setting::default()).expect("Error writing default config");
                 _ = f.write_all(default_config.as_bytes());
             }
             Err(_) => {
@@ -56,44 +82,64 @@ impl Setting {
             Ok(result) => result,
             Err(_) => "".to_string(),
         };
-        let setting: Setting = DeJson::deserialize_json(&content).unwrap();
+        let setting: Setting = toml::from_str(&content).unwrap();
         Self {
             app_name: setting.app_name,
             version: setting.version,
             keys: setting.keys,
         }
     }
-    fn sort_code(&self, input: &str) -> String {
-        if let Some((modifiers, tail)) = input.rsplit_once(' ') {
-            let mut modifier_parts: Vec<&str> = modifiers.split('-').collect();
-            modifier_parts.sort();
-            format!("{} {}", modifier_parts.join("-"), tail)
-        } else {
-            let mut modifier_parts: Vec<&str> = input.split('-').collect();
-            modifier_parts.sort();
-            modifier_parts.join("-")
-        }
+
+    fn filter_scope(&self, window_name: &String, scope: &Vec<String>) -> bool {
+        window_name.is_empty() || scope.is_empty() || scope.contains(&window_name)
+    }
+    fn split_code<'a>(&self, input: &'a str) -> Vec<&'a str> {
+        input.split(" ").collect()
     }
     pub fn find(&self, ev: &GlobalSodKatEvent, window_name: String) -> Option<&SodKatKey> {
-        let modifier = ev.modifier.format();
-        let formatted_key = format!("{} {}", modifier, ev.keycode.to_string().to_lowercase());
-        let formatted_key = formatted_key.trim();
-        let s: Vec<&SodKatKey> = self
-            .keys
-            .iter()
-            .filter(|k| {
-                let s = self.sort_code(&k.key);
-                if window_name.is_empty() || k.scope.is_empty() {
-                    formatted_key == s
-                } else {
-                    if k.scope.contains(&window_name) {
-                        formatted_key == s
-                    } else {
-                        false
+        let keys = ev.tokenize();
+        let mut multikey = COMBO_KEY.lock().unwrap();
+
+        if multikey.combo {
+            let filtered_keys: Vec<&SodKatKey> = self
+                .keys
+                .iter()
+                .filter(|k| {
+                    let formatkey = format!("{} {}", multikey.key, keys);
+
+                    k.key == formatkey
+                })
+                .collect();
+            multikey.reset();
+            println!("multikey reset");
+            return filtered_keys.get(0).map(|&k| k);
+        } else {
+            let filtered_keys: Vec<&SodKatKey> = self
+                .keys
+                .iter()
+                .filter(|k| {
+                    let split_key = self.split_code(&k.key);
+                    let scope = self.filter_scope(&window_name, &k.scope);
+                    if !scope {
+                        return false;
                     }
-                }
-            })
-            .collect();
-        s.get(0).map(|&k| k)
+                    if split_key.len() > 1 {
+                        let val = keys == split_key.get(0).unwrap().to_string();
+                        if val {
+                            multikey.set(keys.clone());
+                        }
+                        val
+                    } else {
+                        k.key == keys
+                    }
+                })
+                .collect();
+            if multikey.combo {
+                println!("multikey state");
+                return None;
+            } else {
+                return filtered_keys.get(0).map(|&k| k);
+            }
+        }
     }
 }

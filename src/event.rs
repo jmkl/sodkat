@@ -1,7 +1,7 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use device_query::Keycode;
-use nanoserde::{DeJson, SerJson};
 use once_cell::sync::{Lazy, OnceCell};
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 /*************************
@@ -26,7 +26,7 @@ pub enum SodKatState {
     Release,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, SerJson, DeJson)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SodKatModifier {
     ALT,
     SHIFT,
@@ -34,13 +34,12 @@ pub enum SodKatModifier {
     META,
 }
 pub trait FormatModifiers {
-    fn to_vec(&self) -> Vec<String>;
+    fn to_vec(&self) -> Vec<&str>;
     fn format(&self) -> String;
 }
 
-// Implement `FormatModifiers` for `Vec<SodKatModifier>`
 impl FormatModifiers for Vec<SodKatModifier> {
-    fn to_vec(&self) -> Vec<String> {
+    fn to_vec(&self) -> Vec<&str> {
         self.iter()
             .map(|modifier| match *modifier {
                 SodKatModifier::ALT => "Alt".into(),
@@ -48,8 +47,9 @@ impl FormatModifiers for Vec<SodKatModifier> {
                 SodKatModifier::CONTROL => "Ctrl".into(),
                 SodKatModifier::META => "Meta".into(),
             })
-            .collect::<Vec<String>>()
+            .collect::<Vec<&str>>()
     }
+
     fn format(&self) -> String {
         let mut r = self
             .iter()
@@ -72,14 +72,31 @@ pub struct GlobalSodKatEvent {
     pub modifier: Vec<SodKatModifier>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, SerJson)]
-pub struct GlobalSodKatPayload {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct GlobalSodKatPayload<'a> {
     pub keycode: String,
     pub is_pressed: bool,
-    pub modifier: Vec<String>,
+    pub modifier: Vec<&'a str>,
 }
 
 impl GlobalSodKatEvent {
+    pub fn tokenize(&self) -> String {
+        let mut r = self
+            .modifier
+            .iter()
+            .map(|modifier| match *modifier {
+                SodKatModifier::ALT => "A",
+                SodKatModifier::SHIFT => "S",
+                SodKatModifier::CONTROL => "C",
+                SodKatModifier::META => "M",
+            })
+            .collect::<Vec<&str>>();
+        r.sort();
+        let binding = self.keycode.to_string().to_lowercase();
+        r.push(binding.as_str());
+        let result = r.join("-");
+        result
+    }
     pub fn to_payload(&self) -> GlobalSodKatPayload {
         GlobalSodKatPayload {
             keycode: self.keycode.to_string(),

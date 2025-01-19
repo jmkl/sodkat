@@ -1,0 +1,21 @@
+app_name = "SodKat"
+version = "1.0.0"
+
+[[keys]]
+key = "q q"
+scope = []
+function = "do_something"
+
+[[keys]]
+key = "q b"
+scope = []
+function = "do_something"
+[[keys]]
+key = "a"
+scope = ["code.exe"]
+function = "do_something"
+
+[[keys]]
+key = "C-q q"
+scope = []
+function = "do_something"
