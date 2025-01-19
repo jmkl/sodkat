@@ -10,8 +10,6 @@ path = "src/lib.rs"
 [dependencies]
 crossbeam-channel = "0.5.14"
 device_query = "2.1.0"
-macroquad = "0.4.13"
-nanoserde = {git="https://github.com/knickish/nanoserde",branch="v_0_2_cleanup", default-features=false, features = ["json"]}
 once_cell = "1.20.2"
 serde = { version = "1.0.217", features = ["derive"] }
 toml = "0.8.19"
